@@ -7,7 +7,33 @@ Router.get(`/`,async (req, res)=>{
     if(!categoryList){
         res.status(500).json({success: false});
     }
-    res.send(categoryList)
+    res.status(200).send(categoryList)
+});
+
+Router.get('/:id', async(req, res) => {
+    
+    try{
+        let category = await Category.findById(req.params.id);
+        res.status(200).send(category);
+    } catch(e){
+
+        res.status(404).json({success: false, message: 'error occured'});
+    }
+})
+
+Router.put('/:id',async (req, res)=> {
+    const category = await Category.findByIdAndUpdate(req.params.id, {
+        name: req.body.name,
+        icon: req.body.icon,
+        color: req.body.color
+    }, {
+        new: true
+    });
+    if(category){
+        res.status(200).send(category);
+    } else {
+        res.status(404).json({success: false, message: 'error occured'});
+    } 
 });
 
 Router.post('/', async (req,res)=>{
@@ -26,11 +52,11 @@ Router.post('/', async (req,res)=>{
 });
 
 Router.delete('/:id', async(req,res)=>{
-    category = await Category.findByIdAndRemove(req.params.id);
-
-    if(category){
+    
+    try{
+        let category = await Category.findByIdAndRemove(req.params.id);
         return res.status(200).json({success: true, message: ' the category deleted successfully!'});
-    } else {
+    } catch(e) {
         return res.status(404).json({success: false})
     }
 });

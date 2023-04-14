@@ -27,7 +27,7 @@ const productSchema = mongoose.Schema({
         default: ''
     },
     price: {
-        type: String,
+        type: Number,
         default: 0
     },
     category: {
@@ -58,5 +58,11 @@ const productSchema = mongoose.Schema({
         default: Date.now()
     }
 })
-
+// converting _id to id to be front-end friendly
+productSchema.virtual('id').get(function (){
+    return this._id.toHexString();
+});
+productSchema.set('toJSON',{
+    virtuals: true
+})
 module.exports =  mongoose.model('Product',productSchema)

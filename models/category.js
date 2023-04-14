@@ -13,6 +13,12 @@ const categorySchema = mongoose.Schema({
         required: true
     }
 });
-
+// converting _id to id to be front-end friendly
+categorySchema.virtual('id').get(function (){
+    return this._id.toHexString();
+});
+categorySchema.set('toJSON',{
+    virtuals: true
+})
 
 module.exports = mongoose.model('Category',categorySchema)
