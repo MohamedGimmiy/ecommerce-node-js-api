@@ -4,6 +4,31 @@ const Product = require('../models/product');
 const Category = require('../models/category');
 const { default: mongoose } = require('mongoose');
 
+// file upload
+const multer = require('multer')
+const FILE_TYPE_MAP = {
+    'image/png' : 'png',
+    'image/jpeg' : 'jpeg',
+    'image/jpg' : 'jpg'
+}
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const isValid = FILE_TYPE_MAP[file.mimetype]
+        let uploadError = new Error('Invalid Image type')
+
+        if(isValid){
+            uploadError = null;
+        }
+      cb(uploadError, 'public/uploads')
+    },
+    filename: function (req, file, cb) {
+        const extension = FILE_TYPE_MAP[file.mimetype]
+      const filename = file.originalname.split(' ').join('-')
+      cb(null,  `${filename}-${Date.now()}.${extension}`)
+    }
+  })
+  
+  const uploadOptions = multer({ storage: storage })
 
 
 Router.get(`/`, async (req, res)=>{
@@ -28,19 +53,24 @@ Router.get('/:id',async(req,res) => {
     }
 });
 
-Router.post(`/`, async(req, res)=>{
-
+Router.post(`/`, uploadOptions.single('image'), async(req, res)=>{
+    if(!req.file){
+        return res.status(400).send('No image in the request')
+    }
+    const fileName = req.file.filename
+    const basePath = `${req.protocol}://${req.get('host')}/public/uploads/`;
     try{
         let category = await Category.findById(req.body.category);
     }
     catch(e){
         return res.status(400).send('Invalid category');
     }
+    console.log(`${basePath}${fileName}`)
     let product = new Product({
        name: req.body.name,
        description: req.body.description,
        richDescription: req.body.richDescription,
-       image: req.body.image,
+       image: `${basePath}${fileName}`, // "https://localhost:3000/public/uploads"
        brand: req.body.brand,
        price: req.body.price,
        category: req.body.category,
@@ -58,13 +88,31 @@ Router.post(`/`, async(req, res)=>{
     }
 });
 
-Router.put('/:id',async (req, res)=> {
+Router.put('/:id', uploadOptions.single('image'),async (req, res)=> {
+    let product;
     try{
-        const product = await Product.findByIdAndUpdate(req.params.id, {
+        product = await Product.findById(req.params.id);
+    }
+    catch(e){
+        return res.status(400).send('Invalid product')
+    }
+
+    const file = req.file;
+    let imagePath;
+    if(file){
+        const fileName = req.file.filename
+        const basePath = `${req.protocol}://${req.get('host')}/public/uploads/`;
+        imagePath = `${basePath}${fileName}`;
+
+    } else {
+        imagePath = product.image
+    }
+    try{
+        const Updatedproduct = await Product.findByIdAndUpdate(req.params.id, {
             name: req.body.name,
             description: req.body.description,
             richDescription: req.body.richDescription,
-            image: req.body.image,
+            image: imagePath,
             brand: req.body.brand,
             price: req.body.price,
             category: req.body.category,
@@ -75,7 +123,7 @@ Router.put('/:id',async (req, res)=> {
         }, {
             new: true
         });
-        res.status(200).send(product);
+        res.status(200).send(Updatedproduct);
     } catch(e) {
         res.status(404).json({success: false, message: 'error occured'});
     } 
@@ -116,5 +164,34 @@ Router.get('/get/featured/:count',async(req,res)=>{
     }
 
 })
+
+// upload filenames
+Router.put('/gallary-images/:id',  uploadOptions.array('images', 10), async (req, res)=> {
+    if(!mongoose.isValidObjectId(req.params.id)){
+        return res.status(400).send('error object is not found');
+    }
+
+    try{
+        const files = req.files;
+        let imagesPaths = [];
+        const basePath = `${req.protocol}://${req.get('host')}/public/uploads/`;
+        if(files){
+            files.map(file=> {
+                console.log(file.filename)
+                imagesPaths.push(`${basePath}${file.filename}`)
+            })
+        }
+        const Updatedproduct = await Product.findByIdAndUpdate(req.params.id, {
+            images: imagesPaths,
+        }, {
+            new: true
+        });
+        res.status(200).send(Updatedproduct);
+    } catch(e) {
+        res.status(404).json({success: false, message: 'error occured'});
+    } 
+
+})
+
 
 module.exports = Router;
